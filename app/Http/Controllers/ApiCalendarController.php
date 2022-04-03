@@ -9,6 +9,7 @@ use Google_Client;
 use Google_Service_Calendar;
 use Google_Service_Calendar_Event;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Validator;
 
 class ApiCalendarController extends Controller
 {
@@ -52,15 +53,10 @@ class ApiCalendarController extends Controller
     {
         $events = $this->calendar->events->listEvents('primary');
         $data = array();
-        foreach ($events->getItems() as $key =>$event) 
-            {       
-                $arrayEvent["id"] = $event->getId();
-                $arrayEvent["name"] = $event->getSummary();
-                $arrayEvent["summary"] = $event->getSummary();
-                $arrayEvent["fecha_inicio"] = date("Y-m-d H:i:s",strtotime($event->getStart()->getDateTime()));
-                $arrayEvent["fecha_fin"] = date("Y-m-d H:i:s",strtotime($event->getEnd()->getDateTime()));
-                $data[] = $arrayEvent;
-            }
+        foreach ($events->getItems() as $key => $event) 
+        {       
+            $data[] = $this->formatData($event);
+        }
         return response()->json($data, 200);
     }
 
@@ -82,6 +78,13 @@ class ApiCalendarController extends Controller
      */
     public function store(Request $request)
     {
+
+        $rules = ["summary" => 'required'];
+        $mesagges = ["required" => "El campo :attribute es requerido" ];
+        $validator = Validator::make($request->all(), $rules, $mesagges);
+        if($validator->fails()){
+            return response()->json($validator->errors());
+        }
         $sumary = $request->get("summary");
         //dd($sumary);
         $event = new Google_Service_Calendar_Event(array(
@@ -114,7 +117,7 @@ class ApiCalendarController extends Controller
 
         $calendarId = 'primary';
         $event = $this->calendar->events->insert($calendarId, $event);
-        return response()->json(array('id' => $event->getId()));
+        return response()->json(array('id' => $event->getId()), 201);
     }
 
     /**
@@ -136,15 +139,11 @@ class ApiCalendarController extends Controller
      */
     public function edit($id)
     {
+        if(empty($id))
+            return response()->json("Se requiere un ID"); 
         $event = $this->calendar->events->get('primary', $id);
         //dd($event);
-        $data = array(
-            "id" => $event->getId(),
-            "name" => $event->getSummary(),
-            "summary" => $event->getSummary(),
-            "fecha_inicio" => date("Y-m-d H:i:s",strtotime($event->getStart()->getDateTime())),
-            "fecha_fin" => date("Y-m-d H:i:s",strtotime($event->getEnd()->getDateTime()))
-        );
+        $data = $this->formatData($event);
         return response()->json($data, 200);
     }
 
@@ -157,11 +156,22 @@ class ApiCalendarController extends Controller
      */
     public function update(Request $request, $id)
     {
+        if(empty($id))
+            return response()->json("Se requiere un ID");
         $event = $this->calendar->events->get('primary', $id);
+        if(!$event)
+            return response()->json("Se requiere un ID valido");
+        $rules = ["summary" => 'required'];
+        $mesagges = ["required" => "El campo :attribute es requerido" ];
+        $validator = Validator::make($request->all(), $rules, $mesagges);
+        if($validator->fails()){
+            return response()->json($validator->errors());
+        }
         $event->setSummary($request->get('summary'));
         //dd($event);
         $updatedEvent = $this->calendar->events->update('primary', $event->getId(), $event);
-        $data = array("status" => "ok");
+        $data = array("status" => true);
+        return response()->json($data, 200);
     }
 
     /**
@@ -172,12 +182,22 @@ class ApiCalendarController extends Controller
      */
     public function destroy($id)
     {
-        try {
-            $this->calendar->events->delete('primary', $id);
-            $data = array("status" => "ok");
-            return response()->json($data, 200);
-        } catch (Throwable $th) {
-            dd($th);
-        }
+        if(empty($id))
+            return response()->json("Se requiere un ID"); 
+        $this->calendar->events->delete('primary', $id);
+        $data = array("status" => true);
+        return response()->json($data, 200);
     }
+
+    public function formatData($event){
+        $data = array(
+            "id" => $event->getId(),
+            "name" => $event->getSummary(),
+            "summary" => $event->getSummary(),
+            "fecha_start" => date("Y-m-d H:i:s",strtotime($event->getStart()->getDateTime())),
+            "fecha_end" => date("Y-m-d H:i:s",strtotime($event->getEnd()->getDateTime()))
+        );
+        return $data;
+    }
+
 }

@@ -20,8 +20,8 @@ Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
 });
 
 
-Route::middleware('auth:api')->get('/calendar','App\Http\Controllers\ApiCalendarController@index');
-Route::middleware('auth:api')->get('/calendar/{id}','App\Http\Controllers\ApiCalendarController@edit');
-Route::middleware('auth:api')->post('/calendar','App\Http\Controllers\ApiCalendarController@store');
-Route::middleware('auth:api')->delete('/calendar/{id}','App\Http\Controllers\ApiCalendarController@destroy');
-Route::middleware('auth:api')->put('/calendar/{id}','App\Http\Controllers\ApiCalendarController@update');
+Route::middleware('auth:api')->get('/calendar', [ApiCalendarController::class,'index']);
+Route::middleware('auth:api')->get('/calendar/{id}',[ApiCalendarController::class, 'edit']);
+Route::middleware('auth:api')->post('/calendar',[ApiCalendarController::class, 'store']);
+Route::middleware('auth:api')->delete('/calendar/{id}',[ApiCalendarController::class, 'destroy']);
+Route::middleware('auth:api')->put('/calendar/{id}',[ApiCalendarController::class, 'update']);
