@@ -79,18 +79,19 @@ class ApiCalendarController extends Controller
     public function store(Request $request)
     {
 
-        $rules = ["summary" => 'required'];
-        $mesagges = ["required" => "El campo :attribute es requerido" ];
+        $rules = ["summary" => 'required', "location" => "required"];
+        $mesagges = ["required" => "El campo :attribute es requerido"];
         $validator = Validator::make($request->all(), $rules, $mesagges);
         if($validator->fails()){
-            return response()->json($validator->errors());
+            return response()->json(array("status"=> false, "error" => $validator->errors()));
         }
-        $sumary = $request->get("summary");
+        
+        list($sumary, $location, $description) = array($request->get("summary"),$request->get("location"),$request->get("description"));
         //dd($sumary);
         $event = new Google_Service_Calendar_Event(array(
             'summary' => $sumary,
-            'location' => '800 Howard St., San Francisco, CA 94103',
-            'description' => 'A chance to hear more about Google\'s developer products.',
+            'location' => $location,
+            'description' => $description,
             'start' => array(
               'dateTime' => '2022-03-26T09:03:00-07:00',
               'timeZone' => 'America/Los_Angeles',
@@ -117,7 +118,7 @@ class ApiCalendarController extends Controller
 
         $calendarId = 'primary';
         $event = $this->calendar->events->insert($calendarId, $event);
-        return response()->json(array('id' => $event->getId()), 201);
+        return response()->json(array('status' => true, 'id' => $event->getId()), 201);
     }
 
     /**
@@ -128,7 +129,7 @@ class ApiCalendarController extends Controller
      */
     public function show($id)
     {
-        //
+    
     }
 
     /**
@@ -161,13 +162,16 @@ class ApiCalendarController extends Controller
         $event = $this->calendar->events->get('primary', $id);
         if(!$event)
             return response()->json("Se requiere un ID valido");
-        $rules = ["summary" => 'required'];
-        $mesagges = ["required" => "El campo :attribute es requerido" ];
+        $rules = ["summary" => 'required', "location" => "required"];
+        $mesagges = ["required" => "El campo :attribute es requerido"];
         $validator = Validator::make($request->all(), $rules, $mesagges);
         if($validator->fails()){
-            return response()->json($validator->errors());
+            return response()->json(array("status"=> false, "error" => $validator->errors()));
         }
-        $event->setSummary($request->get('summary'));
+        list($sumary, $location, $description) = array($request->get("summary"),$request->get("location"),$request->get("description"));
+        $event->setSummary($sumary);
+        $event->setLocation($location);
+        $event->setDescription($description);
         //dd($event);
         $updatedEvent = $this->calendar->events->update('primary', $event->getId(), $event);
         $data = array("status" => true);
@@ -190,13 +194,20 @@ class ApiCalendarController extends Controller
     }
 
     public function formatData($event){
+        //dd($event);
         $data = array(
             "id" => $event->getId(),
             "name" => $event->getSummary(),
             "summary" => $event->getSummary(),
             "fecha_start" => date("Y-m-d H:i:s",strtotime($event->getStart()->getDateTime())),
-            "fecha_end" => date("Y-m-d H:i:s",strtotime($event->getEnd()->getDateTime()))
+            "fecha_end" => date("Y-m-d H:i:s",strtotime($event->getEnd()->getDateTime())),
+            "html_link" => $event->getHtmlLink(),
+            "location" => $event->getLocation(),
+            "description" => $event->getDescription()
         );
+        foreach ($event->getAttendees() as $key => $attendee){
+            $data["invitados"][] = $attendee->getEmail();
+        }
         return $data;
     }
 
